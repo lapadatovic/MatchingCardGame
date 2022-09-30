@@ -6,7 +6,7 @@ class AudioController {
         this.matchSound = new Audio('Assets/Audio/match.wav');
         this.victorySound = new Audio('Assets/Audio/victory.wav');
         this.gameOverSound = new  Audio('Assets/Audio/gameover.wav');
-        this.bgMusic.volume = 0.1;
+        this.bgMusic.volume = 0;
         this.bgMusic.loop = true;
     }
 
@@ -17,7 +17,7 @@ class AudioController {
     stopMusic(){
         // Cuz we cant stop music in JS, we have to
         // pause it, and set time to 0;
-        this.bgMusic.pasuse();
+        this.bgMusic.pause();
         this.bgMusic.currentTime = 0;
     }
     // Flip card sound
@@ -25,7 +25,7 @@ class AudioController {
         this.flipSound.play();
     }
     // Match card sound
-    matchSound(){
+    match(){
         this.matchSound.play();
     }
     // Victory sound
@@ -43,13 +43,12 @@ class AudioController {
 
 class MixOrMatch{
     constructor(totalTime, cards){
-        this.totalTime = totalTime;
-        this.cardsArray = cards;
-        this.timeReamaining = totalTime;
         this.timer = document.getElementById('time-remaining');
         this.ticker = document.getElementById('flips');
         this.audioController = new AudioController();
-        
+        this.totalTime = totalTime;
+        this.cardsArray = cards;
+        this.timeReamaining = totalTime;
     }
     startGame(){
         this.cardToCheck = null;
@@ -62,11 +61,23 @@ class MixOrMatch{
         setTimeout(()=>{
             this.audioController.startMusic();
             this.shuffleCards();
-            this.countdown = this.startCountdown();
-            this.busy = false
-        },500)
+            this.countDown = this.startCountDown();
+            this.busy = false;
+        },500);
+
+        this.hideCards();
+        this.timer.innerText = this.timeReamaining;
+        this.ticker.innerText = this.totalClicks;
 
     }
+
+    hideCards(){
+        this.cardsArray.forEach(card => {
+            card.classList.remove('visible');
+            card.classList.remove('matched')
+        })
+    }
+
     flipCard(card){
         if(this.canFlipCard(card)) {
             this.audioController.flip();
@@ -75,8 +86,48 @@ class MixOrMatch{
             card.classList.add('visible');
 
             // if statement
+            if(this.cardToCheck){
+                // check for match
+                this.checkForCardMatch(card);
+            }else {
+                this.cardToCheck = card;
+            }
 
         }
+    }
+
+    checkForCardMatch(card){
+        if(this.getCardType(card) === this.getCardType(this.cardToCheck)){
+            //match
+            this.cardMatch(card, this.cardToCheck);
+        }else{
+            this.cardMisMatch(card, this.cardToCheck);
+        }
+
+        this.cardToCheck = null;
+    }
+    getCardType(card){
+        return card.getElementsByClassName('card-value')[0].src;
+    }
+
+    cardMatch(card1, card2){
+        this.matchedCards.push(card1);
+        this.matchedCards.push(card2);
+        card1.classList.add('matched')
+        card2.classList.add('matched')
+        this.audioController.match();
+        if(this.matchedCards.length === this.cardsArray.length){
+            this.victory();
+        }
+    }
+
+    cardMisMatch(card1, card2){
+        this.busy = true;
+        setTimeout(()=>{
+            card1.classList.remove('visible')
+            card2.classList.remove('visible')
+            this.busy = false;
+        },500)
     }
 
     shuffleCards(){
@@ -87,12 +138,35 @@ class MixOrMatch{
             this.cardsArray[i].style.order = randIndex;
         }
     }
+
     canFlipCard(card){
         // 3 scenarios
-        return true;
-        // return (!this.busy && !this.matchedCards.includes(card) && card !== this.cardToCheck)
-        
+        // 1st - if its not busy
+        // 2nd - if the card we flip its not in a matchedCards array
+        // 3rd - if card we flip its not cardToCheck  
+        return (!this.busy && !this.matchedCards.includes(card) && card !== this.cardToCheck)
+    }
 
+    startCountDown(){
+        return setInterval(() =>{
+            this.timeReamaining--;
+            this.timer.innerText = this.timeReamaining;
+            if(this.timeReamaining === 0){
+                this.gameOver();
+            }
+        },1000) 
+    }
+
+    victory() {
+        clearInterval(this.countDown);
+        this.audioController.victory();
+        document.getElementById('victory-text').classList.add('visible');
+    }
+
+    gameOver(){
+        clearInterval(this.countDown);
+        this.audioController.gameOver();
+        document.getElementById('game-over-text').classList.add('visible');
     }
 }
 
@@ -105,8 +179,6 @@ function ready() {
         overlay.addEventListener('click', () => {
             overlay.classList.remove('visible');
             game.startGame();
-            // let audioController = new AudioController();
-            // audioController.startMusic();
         });
     });
 
@@ -122,6 +194,7 @@ if(document.readyState === 'loading'){
 }else{
     ready();
 }
+
 
 
 // new MixOrMatch(100, cardsArray);
